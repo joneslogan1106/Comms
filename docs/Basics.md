@@ -1,0 +1,5 @@
+# Basics
+## Overview
+This Markdown file shall hold the basic things you should know before making any modifications to this program. Making modifications to this program, will require extensive knowldege of our tooling. Below I shall put a quick introduction to our custom protocol and I will link a file explaining our protocol in-depth.
+## Our Protocol
+Our Protocol refered too as "General Coumnications Protocol for Socket Messaging". The General Coumnications Protocol for Socket Messaging, uses a range of ports to coumnicate with a sever and client, Mostly used for messaging, but if you work client-side or make modifications for our client-side application, You could expand on our CLI to make a Graphical User Interface to render images and download files. [More info can be found here](./Protocol.md)
