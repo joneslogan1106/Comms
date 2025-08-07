@@ -1,5 +1,28 @@
-import threading, socket, time, db, ast, json
+import threading, socket, time, db, ast
+from prompt_toolkit import PromptSession
 from time import sleep
+past_time = 0
+session = PromptSession()
+username = "Bob"
+def unfix_message(i: str):
+    o = ""
+    b = False
+    replace_list = {
+        "n":"\n",
+        "\\": "\\"
+    }
+    for v in i:
+        if b:
+            try:
+                o += replace_list[v]
+            except KeyError:
+                o += v
+            b = False
+        elif v == "\\":
+            b = True
+        else:
+            o += v
+    return o
 def fetch_messages():
     HOST = "127.0.0.1"
     PORT = 6090
@@ -11,15 +34,25 @@ def fetch_messages():
         client, addr = server_socket.accept()
         try:
             messages = client.recv(4096)
-            # Expecting JSON-encoded list of messages
-            msgs = json.loads(messages.decode())
-            with open("cdatabase.db", "a") as f:
-                for msg in msgs:
-                    f.write(msg + "\n")
+            # Decode bytes to string before splitting
+            messages_str = messages.decode()
+            for i in messages_str.split("\n"):
+                print(f"{db.fetch_user(i)}: {unfix_message(db.fetch_message(i))}")
         except Exception as e:
             print(f"Error in fetch_messages: {e}")
         finally:
             client.close()
+
+def send_message():
+    print("Press [Alt/Option+Enter] or [Esc] followed by [Enter] to accept input.")
+    message = session.prompt("Enter message: ", multiline=True)
+    message = str(message)
+    HOST = "127.0.0.1"
+    PORT = 9980
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect((HOST, PORT))
+    client_socket.sendall(f"{username};{message}".encode())
+    client_socket.close()
 
 def heartbeat():
     HOST = "127.0.0.1"
@@ -32,15 +65,11 @@ def heartbeat():
         try:
             client, addr = server_socket.accept()
             data = client.recv(1024)
-            print(data)
             tries = 10
             while not data and tries > 0:
                 data = client.recv(1024)
-                print(f"Empty data recieved, Tries left: {str(tries)}")
-                sleep(0.5 * (11-tries))
                 tries -= 1
             client.sendall(str(time.time()).encode("utf-8"))
-            print(data.decode("utf-8"))
         except Exception as e:
             print(f"Heartbeat error: {e}")
             break
@@ -58,11 +87,11 @@ def main():
     except TimeoutError:
         exit("Connection Refused.")
     if data == b"Pong":
-        print("PONG!")
+        print("Connected")
         threading.Thread(target=heartbeat, daemon=True).start()
         threading.Thread(target=fetch_messages, daemon=True).start()
         while True:
-            time.sleep(1)
+            send_message()
     else:
         exit("Connection Refused.")
 

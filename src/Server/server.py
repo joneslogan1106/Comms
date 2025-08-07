@@ -2,21 +2,52 @@ import threading, socket, time, db
 from c16 import ctypes, c16
 exiting = False
 clients = []
-debug = 1
+debug = 0
 if __name__ == "__main__":
+    def glue(i: list, s: str = " "):
+        o = ""
+        for v in i:
+            o += v + s
+        return o[:-1]
+    def fix_string(i: str):
+        o = ""
+        replace_string_list = {
+            "\n": "\\n",
+            "\\": "\\\\"
+        }
+        for v in i:
+            try:
+                o += replace_string_list[v]
+            except KeyError:
+                o += v
+        return o
+    def listen_messages(client):
+        PORT = 9980
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        server_socket.bind((client, PORT))
+        server_socket.listen(3) # we listen and we judge
+        print(f"[SERVER]: Listening for messages on {client}:{PORT}")
+        while not exiting:
+            client, addr = server_socket.accept() # yayyyyyyyyyyyyyy
+            data = client.recv(1024)
+            data = fix_string(data.decode()).split(";")
+            if db.validate_message(f"0;0;{glue(data, ";")}"):
+                db.add_message(str(time.time()), data[0], glue(data[1:]))
+                print(f"[SERVER]: Received message from {addr}: {data}")
+            client.send(b"Thx")
     def get_new_chats(timed):
-        messages = []
+        messages = ""
         f = open("database.db", "r")
         for i in f.readlines():
             if db.fetch_time(i) >= timed:
-                messages.append(i)
+                messages += i + "\n"
         return messages
     def send_messages(client, timed):
         PORT = 6090
         chats = get_new_chats(timed)
         message_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
         message_socket.connect((client, PORT))
-        message_socket.sendall(str(chats).encode())
+        message_socket.sendall(chats.encode())
     def acception():
         try:
             HOST = "127.0.0.1"
@@ -24,6 +55,7 @@ if __name__ == "__main__":
             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
             server_socket.bind((HOST, PORT))
             server_socket.listen(5)
+            print(f"[SERVER]: Listening on {HOST}:{PORT}")
             while not exiting:
                 client, addr = server_socket.accept()
                 client.recv(1024)
@@ -34,6 +66,7 @@ if __name__ == "__main__":
                 print(f"[SERVER]: New client connected: {addr}")
                 print(f"[SERVER]: Addr: {addr}")
                 threading.Thread(target=heartbeat, args=(addr[0],)).start()
+                threading.Thread(target=listen_messages, args=(addr[0],)).start()
                 #client.close()
         except KeyboardInterrupt:
             server_socket.close()
@@ -82,7 +115,7 @@ if __name__ == "__main__":
                     print("Faulty Client, Killed Connection")
                     clients.remove(client)
                     return
-                send_messages(client, data)
+                threading.Thread(target=send_messages, args=(client, data))
                 heartbeat_socket.close()
     thread = threading.Thread(target=acception)
     thread.start()
