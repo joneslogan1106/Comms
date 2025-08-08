@@ -1,9 +1,14 @@
-import threading, socket, time, db
+import threading, socket, time, db, os, importlib
 from c16 import ctypes, c16
 exiting = False
 clients = []
 debug = 0
 if __name__ == "__main__":
+    def load_mods():
+        for file in os.listdir("mods"):
+            if file.endswith(".py") and not file.startswith("__"):
+                module_name = file[:-3]
+                importlib.import_module(f"mods.{module_name}")
     def glue(i: list, s: str = " "):
         o = ""
         for v in i:
@@ -48,6 +53,11 @@ if __name__ == "__main__":
         message_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
         message_socket.connect((client, PORT))
         message_socket.sendall(chats.encode())
+    def authentication(client: str):
+        PORT = 12090
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        server_socket.connect((client, PORT))
+        server_socket.send(b"Authed")
     def acception():
         try:
             HOST = "127.0.0.1"
@@ -55,12 +65,18 @@ if __name__ == "__main__":
             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
             server_socket.bind((HOST, PORT))
             server_socket.listen(5)
+            authentication_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+            authentication_socket.bind((HOST, 9281))
+            authentication_socket.listen(1)
+            print("[SERVER]: Started authentication socket")
             print(f"[SERVER]: Listening on {HOST}:{PORT}")
             while not exiting:
                 client, addr = server_socket.accept()
                 client.recv(1024)
+                authentication_socket.recv(1024)
                 timed = time.time()
                 client.send(b"Pong")
+                authentication_socket.send(b"Auth1")
                 global clients
                 clients.append(addr[0])
                 print(f"[SERVER]: New client connected: {addr}")

@@ -1,0 +1,14 @@
+from datetime import datetime
+def send_message(message: str): # Use this to to send a message to all clients, keep it empty as it gets redefined as send_message()
+    pass
+def message_got(message: str, username: str, time_at: float):
+    # Gets sent whenever a client sends a message to the server
+    readable_time = datetime.fromtimestamp(time_at).strftime("%H:%M")
+    print(f"A cool message by {username} was sent at {readable_time}. It reads: {message}")
+def successful_heartbeat(time_at: float, client_addr: str):
+    # This function is called whenever the client sends a response back when the server sends a heartbeat request
+    readable_time = datetime.fromtimestamp(time_at).strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{client_addr} responded with a timestamp of {readable_time}")
+def client_connected(username: str, addr: str):
+    # Gets sent whenever a client connects and logs in
+    print(f"{username} hopped on!")

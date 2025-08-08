@@ -88,8 +88,23 @@ def main():
         exit("Connection Refused.")
     if data == b"Pong":
         print("Connected")
+        client_to_server_auth_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_to_server_auth_socket.bind((HOST, 12090))
+        client_to_server_auth_socket.settimeout(5)
+        server, addr = client_to_server_auth_socket.accept()
+        server.recv()
+        server.send(b"Auth")
+        try:
+            data1 = client_to_server_auth_socket.recv(1024)
+            if data1 == b"Auth":
+                print("Authentication Successful")
+            else:
+                exit("Authentication Failed.")
+        except TimeoutError:
+            exit("Authentication Failed.")
         threading.Thread(target=heartbeat, daemon=True).start()
         threading.Thread(target=fetch_messages, daemon=True).start()
+
         while True:
             send_message()
     else:
