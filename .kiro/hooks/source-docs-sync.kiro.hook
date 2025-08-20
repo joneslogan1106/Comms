@@ -1,0 +1,23 @@
+{
+  "enabled": true,
+  "name": "Source Documentation Sync",
+  "description": "Listens to all source files (Python, C, C++) and triggers documentation updates in README.md and docs folder when changes occur",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.py",
+      "src/**/*.c",
+      "src/**/*.cpp",
+      "src/**/*.h",
+      "src/**/*.hpp",
+      "test/**/*.py",
+      "unused/**/*.py",
+      "unused/**/*.c"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Source code files have been modified. Please review the changes and update the documentation accordingly. Update the README.md file and any relevant documentation in the docs/ folder (Basics.md, Documentation.md, Protocol.md) to reflect any new features, API changes, or architectural modifications. Ensure the documentation remains accurate and helpful for users and developers."
+  }
+}

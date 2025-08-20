@@ -70,45 +70,88 @@ def heartbeat():
                 data = client.recv(1024)
                 tries -= 1
             client.sendall(str(time.time()).encode("utf-8"))
+            client.close()  # Close client connection after each heartbeat
         except Exception as e:
             print(f"Heartbeat error: {e}")
             break
-    client.close()
+    server_socket.close()
 
 def main():
     HOST = "127.0.0.1"
     PORT = 10740
+    AUTH_PORT = 9281
+    
+    # Step 1: Set up client listening socket for server's authentication callback first
+    client_auth_listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_auth_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    client_auth_listener.bind((HOST, 12090))
+    client_auth_listener.listen(1)
+    client_auth_listener.settimeout(10)
+    
+    # Step 2: Connect to main server socket
+    print("Connecting to main server socket...")
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((HOST, PORT))
+    print("Sending Ping...")
     client_socket.sendall(b"Ping")
-    client_socket.settimeout(5)
+    
+    # Step 3: Connect to authentication socket simultaneously
+    print("Connecting to authentication socket...")
+    auth_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    auth_socket.connect((HOST, AUTH_PORT))
+    print("Sending AuthRequest...")
+    auth_socket.sendall(b"AuthRequest")
+    
+    # Step 4: Wait for server responses
     try:
+        # Server should send "Pong" on main socket
+        client_socket.settimeout(5)
         data = client_socket.recv(1024)
-    except TimeoutError:
-        exit("Connection Refused.")
-    if data == b"Pong":
-        print("Connected")
-        client_to_server_auth_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client_to_server_auth_socket.bind((HOST, 12090))
-        client_to_server_auth_socket.settimeout(5)
-        server, addr = client_to_server_auth_socket.accept()
-        server.recv()
-        server.send(b"Auth")
-        try:
-            data1 = client_to_server_auth_socket.recv(1024)
-            if data1 == b"Auth":
-                print("Authentication Successful")
-            else:
-                exit("Authentication Failed.")
-        except TimeoutError:
+        
+        # Server should send "Auth1" on auth socket  
+        auth_socket.settimeout(5)
+        auth_response = auth_socket.recv(1024)
+        
+        if data == b"Pong" and auth_response == b"Auth1":
+            print("Connected and authenticated with server")
+            
+            # Step 5: Wait for server's authentication callback
+            try:
+                server_conn, addr = client_auth_listener.accept()
+                server_auth_data = server_conn.recv(1024)
+                if server_auth_data == b"Authed":
+                    print("Full authentication completed")
+                    server_conn.close()
+                    client_auth_listener.close()
+                    auth_socket.close()
+                    client_socket.close()
+                    
+                    # Start client threads
+                    threading.Thread(target=heartbeat, daemon=True).start()
+                    threading.Thread(target=fetch_messages, daemon=True).start()
+                    
+                    print("Client ready - you can start sending messages")
+                    while True:
+                        send_message()
+                else:
+                    exit("Server authentication callback failed.")
+            except TimeoutError:
+                exit("Server authentication callback timeout.")
+        else:
             exit("Authentication Failed.")
-        threading.Thread(target=heartbeat, daemon=True).start()
-        threading.Thread(target=fetch_messages, daemon=True).start()
-
-        while True:
-            send_message()
-    else:
-        exit("Connection Refused.")
+            
+    except TimeoutError:
+        exit("Connection timeout during authentication.")
+    except Exception as e:
+        exit(f"Authentication error: {e}")
+    finally:
+        # Clean up sockets
+        try:
+            client_socket.close()
+            auth_socket.close() 
+            client_auth_listener.close()
+        except:
+            pass
 
 if __name__ == "__main__":
     main()

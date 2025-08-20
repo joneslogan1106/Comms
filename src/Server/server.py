@@ -1,8 +1,24 @@
-import threading, socket, time, db, os, importlib
+import threading, socket, time, db, os, importlib, signal, sys
 from c16 import ctypes, c16
 exiting = False
 clients = []
 debug = 0
+server_sockets = []  # Keep track of all server sockets for cleanup
+
+def signal_handler(sig, frame):
+    global exiting, server_sockets
+    print("\n[SERVER]: Shutting down gracefully...")
+    exiting = True
+    # Close all server sockets
+    for sock in server_sockets:
+        try:
+            sock.close()
+        except:
+            pass
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+
 if __name__ == "__main__":
     def load_mods():
         for file in os.listdir("mods"):
@@ -29,6 +45,7 @@ if __name__ == "__main__":
     def listen_messages(client):
         PORT = 9980
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_socket.bind((client, PORT))
         server_socket.listen(3) # we listen and we judge
         print(f"[SERVER]: Listening for messages on {client}:{PORT}")
@@ -36,7 +53,7 @@ if __name__ == "__main__":
             client, addr = server_socket.accept() # yayyyyyyyyyyyyyy
             data = client.recv(1024)
             data = fix_string(data.decode()).split(";")
-            if db.validate_message(f"0;0;{glue(data, ";")}"):
+            if db.validate_message(f"0;0;{glue(data, ';')}"):
                 db.add_message(str(time.time()), data[0], glue(data[1:]))
                 print(f"[SERVER]: Received message from {addr}: {data}")
             client.send(b"Thx")
@@ -63,29 +80,60 @@ if __name__ == "__main__":
             HOST = "127.0.0.1"
             PORT = 10740
             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             server_socket.bind((HOST, PORT))
             server_socket.listen(5)
             authentication_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+            authentication_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             authentication_socket.bind((HOST, 9281))
             authentication_socket.listen(1)
+            
+            # Register sockets for cleanup
+            global server_sockets
+            server_sockets.extend([server_socket, authentication_socket])
             print("[SERVER]: Started authentication socket")
             print(f"[SERVER]: Listening on {HOST}:{PORT}")
             while not exiting:
+                # Accept main client connection
                 client, addr = server_socket.accept()
-                client.recv(1024)
-                authentication_socket.recv(1024)
+                print(f"[SERVER]: Client connected from {addr}")
+                
+                # Receive ping from client
+                ping_data = client.recv(1024)
+                print(f"[SERVER]: Received: {ping_data}")
+                
+                # Accept authentication connection
+                auth_client, auth_addr = authentication_socket.accept()
+                print(f"[SERVER]: Auth client connected from {auth_addr}")
+                
+                # Receive auth request
+                auth_data = auth_client.recv(1024)
+                print(f"[SERVER]: Received auth: {auth_data}")
+                
                 timed = time.time()
+                
+                # Send responses
                 client.send(b"Pong")
-                authentication_socket.send(b"Auth1")
+                auth_client.send(b"Auth1")
+                
+                # Add client to list
                 global clients
                 clients.append(addr[0])
-                print(f"[SERVER]: New client connected: {addr}")
-                print(f"[SERVER]: Addr: {addr}")
+                print(f"[SERVER]: New client authenticated: {addr}")
+                
+                # Complete authentication by connecting back to client
+                threading.Thread(target=authentication, args=(addr[0],)).start()
+                
+                # Start client threads
                 threading.Thread(target=heartbeat, args=(addr[0],)).start()
                 threading.Thread(target=listen_messages, args=(addr[0],)).start()
-                #client.close()
+                
+                # Close the initial connections
+                client.close()
+                auth_client.close()
         except KeyboardInterrupt:
             server_socket.close()
+            authentication_socket.close()
             exit()
     def heartbeat(client):
         while not exiting:

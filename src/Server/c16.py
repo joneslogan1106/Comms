@@ -1,5 +1,11 @@
 import ctypes
-c16 = ctypes.CDLL("./16.dll")
+import os
+
+# Load the appropriate library based on the platform
+if os.name == 'nt':  # Windows
+    c16 = ctypes.CDLL("./16.dll")
+else:  # Linux/Unix
+    c16 = ctypes.CDLL("./lib16.so")
 # use "from c16.py import ctypes, c16" to import
 c16.decode_B.restype = ctypes.c_char_p
 c16.encode_B.restype = ctypes.c_char_p
