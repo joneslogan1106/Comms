@@ -57,7 +57,20 @@ The system uses multiple ports for different communication types:
 
 ## Documentation
 
-For detailed information, see the [docs](./docs/) folder:
-- [Basics](./docs/Basics.md) - Getting started guide
-- [Protocol](./docs/Protocol.md) - Detailed protocol specification
-- [Documentation](./docs/Documentation.md) - Development guidelines
+For detailed information, see the comprehensive documentation in the [docs](./docs/) folder:
+
+### Getting Started
+- [Installation Guide](./docs/Installation-Guide.md) - Complete setup instructions for all platforms
+- [Basics](./docs/Basics.md) - Getting started guide and basic usage
+- [Troubleshooting Guide](./docs/Troubleshooting-Guide.md) - Solutions to common issues
+
+### Technical Documentation
+- [Architecture Overview](./docs/Architecture-Overview.md) - System design and component interactions
+- [Protocol Specification](./docs/Protocol.md) - Detailed communication protocol
+- [API Reference](./docs/API-Reference.md) - Complete function and class documentation
+
+### Development and Operations
+- [Development Guide](./docs/Development-Guide.md) - Development workflows and best practices
+- [Security Guide](./docs/Security-Guide.md) - Security considerations and hardening
+- [Performance Guide](./docs/Performance-Guide.md) - Optimization and scalability strategies
+- [Documentation](./docs/Documentation.md) - Legacy development guidelines
